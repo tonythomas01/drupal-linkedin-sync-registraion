@@ -1,0 +1,13 @@
+fontawesome.settings:
+  type: config_object
+  label: 'LinkedIn Sync Settings'
+  mapping:
+    client_id:
+      type: string
+      label: 'Client id from LinekdIn App'
+    client_secret:
+      type: string
+      label: 'Client secret from LinekdIn App'
+    redirect_uri:
+      type: string
+      label: 'Redirect URI after authentication'

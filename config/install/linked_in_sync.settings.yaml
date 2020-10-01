@@ -1,0 +1,3 @@
+client_id: 'client_id_from_linkedin_app'
+client_secret: 'client_secret_from_linkedin_app'
+redirect_uri: 'http://hackathon.docker.localhost:8000/master-alumni/register/'

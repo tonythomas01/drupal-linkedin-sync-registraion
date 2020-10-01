@@ -1,0 +1,82 @@
+<?php
+
+
+function post_request($url, array $params)
+{
+    $query_content = http_build_query($params);
+    $fp = fopen($url, 'r', FALSE, // do not use_include_path
+        stream_context_create([
+            'http' => [
+                'header' => [ // header array does not need '\r\n'
+                    'Content-type: application/x-www-form-urlencoded',
+                    'Content-Length: ' . strlen($query_content)
+                ],
+                'method' => 'POST',
+                'content' => $query_content
+            ]
+        ]));
+    if ($fp === FALSE) {
+        return json_encode(['error' => 'Failed to get contents...']);
+    }
+    $result = stream_get_contents($fp); // no maxlength/offset
+    fclose($fp);
+    return $result;
+}
+
+function get_request($url, $auth_code)
+{
+    $fp = fopen($url, 'r', FALSE, // do not use_include_path
+        stream_context_create([
+            'http' => [
+                'header' => [ // header array does not need '\r\n'
+                    'authorization: Bearer ' . $auth_code
+                ],
+                'method' => 'GET',
+            ]
+        ]));
+    if ($fp === FALSE) {
+        return json_encode(['error' => 'Failed to get contents...']);
+    }
+    $result = stream_get_contents($fp); // no maxlength/offset
+    fclose($fp);
+    return $result;
+}
+
+function linked_in_sync_form_user_register_form_alter(&$form, &$form_state)
+{
+    $form['konnect'] = array(
+        '#type' => 'button',
+        '#value' => t('LinkedIn Sync'),
+        '#limit_validation_errors' => array(),
+    );
+
+    $form['#attached'] = [
+        'library' => [
+            'linked_in_sync/linked_in_sync',
+        ],
+    ];
+    $module_configurations = \Drupal::config('linked_in_sync.settings');
+    $form['#attached']['drupalSettings']['linkedInClientId'] = $module_configurations->get('client_id');
+
+    $code = \Drupal::request()->query->get('code');
+    if ($code) {
+        $params = array(
+            'code' => $code,
+            'grant_type' => "authorization_code",
+            'client_id' => $module_configurations->get('client_id'),
+            'client_secret' => $module_configurations->get('client_secret'),
+            'redirect_uri' => $module_configurations->get('redirect_uri')
+        );
+        $result = post_request($url = "http://www.linkedin.com/oauth/v2/accessToken", $params);
+        $result_decoded = json_decode($result, true);
+        $access_token = $result_decoded["access_token"];
+
+        $getResponse = get_request($url = "https://api.linkedin.com/v2/me", $access_token);
+        $getResponseDecoded = json_decode($getResponse, true);
+
+        // Try to populate some fields ?
+        $form['field_first_name']['widget'][0]['value']['#default_value'] = $getResponseDecoded["firstName"]["localized"]["en_US"];
+        $form['field_last_name']['widget'][0]['value']['#default_value'] = $getResponseDecoded["lastName"]["localized"]["en_US"];
+    }
+
+}
